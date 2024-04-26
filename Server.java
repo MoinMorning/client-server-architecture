@@ -1,7 +1,6 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-
 public class Server {
     private static Map<String, ClientHandler> clientHandlers = new HashMap<>();
     private static List<String> deck = new ArrayList<>();
@@ -20,7 +19,93 @@ public class Server {
             new Thread(clientHandler).start();
 
         }
-       
+        private void startGame() {
+            // Distribute cards to players (draw 1 card for each player)
+    for (String player : clientHandlers.keySet()) {
+        String card = deck.remove(0); // Draw the top card
+        playerHands.put(player, card);
+    }
+
+    // Inform players that the game has started
+    broadcastMessage("Game has started! Good luck!");
+
+    // Determine the first player's turn (you can choose randomly or based on some criteria)
+    playerTurnOrder.addAll(clientHandlers.keySet()); // Initialize turn order
+    Collections.shuffle(playerTurnOrder); // Randomize the order
+
+
+    // Begin the first turn
+    String firstPlayer = getCurrentPlayer();
+    broadcastMessage("First turn: " + firstPlayer);
+        }
+        private void playCard(String cardName) {
+            String currentPlayer = getCurrentPlayer();
+
+            // Validate if it's the player's turn
+            if (!currentPlayer.equals(this.username)) {
+                out.println("It's not your turn!");
+                return;
+            }
+        
+            // Validate if the player has the specified card in their hand
+            String playerHand = playerHands.get(this.username);
+            if (!playerHand.equals(cardName)) {
+                out.println("You don't have that card in your hand!");
+                return;
+            }
+        
+            // Apply the card effect (example: Guard)
+            switch (cardName) {
+                case "Guard":
+                    // Example: Guess another player's card; if correct, they're out.
+                    // Implement the guessing logic here
+                    // ...
+                    break;
+                case "Priest":
+                    // Example: Look at another player's hand.
+                    // Implement the hand inspection logic here
+                    // ...
+                    break;
+                // Add other card effects (Baron, Handmaid, etc.) as needed
+                default:
+                    out.println("Invalid card name.");
+                    return;
+            }
+        
+            // Update playerHands map (remove the played card from the player's hand)
+            playerHands.remove(this.username);
+        
+            // Inform all players about the played card and its effect
+            broadcastMessage("Player " + this.username + " played " + cardName);
+        
+            // Proceed to the next turn
+            // Update the playerTurnOrder queue (rotate the order)
+            playerTurnOrder.add(playerTurnOrder.poll());
+            String nextPlayer = getCurrentPlayer();
+            broadcastMessage("Next turn: " + nextPlayer);
+        }
+        private static void initializeDeck() {
+            // Add card names to the deck
+            // Example: deck.add("Guard");
+            // ...
+            deck.add("Guard");
+            deck.add("Priest");
+            deck.add("Baron");
+            deck.add("Prince");
+
+            // Shuffle the deck
+            Collections.shuffle(deck);
+        }
+        private String getCurrentPlayer() {
+            // Ensure the playerTurnOrder queue is not empty
+            if (playerTurnOrder.isEmpty()) {
+                // Handle this case (e.g., start a new round or end the game)
+                // ...
+            }
+        
+            // Get the current player from the front of the queue
+            return playerTurnOrder.peek();
+        }
     }
 
      static class ClientHandler implements Runnable {
@@ -111,33 +196,6 @@ public void run() {
 
         private void sendMessage(String message) {
             this.out.println(message);
-        }
-        private void startGame() {
-            // Distribute cards to players (draw 1 card for each player)
-            // Inform players that the game has started
-            // Start the first turn (choose a random player to begin)
-            // ...
-        }
-        private void playCard(String cardName) {
-            // Validate if it's the player's turn
-            // Validate if the player has the specified card in their hand
-            // Apply the card effect (e.g., compare hands, force discard, etc.)
-            // Update playerHands map accordingly
-            // Inform players about the played card and its effect
-            // Proceed to the next turn
-            // ...
-        }
-        private static void initializeDeck() {
-            // Add card names to the deck
-            // Example: deck.add("Guard");
-            // ...
-            deck.add("Guard");
-            deck.add("Priest");
-            deck.add("Baron");
-            deck.add("Prince");
-
-            // Shuffle the deck
-            Collections.shuffle(deck);
         }
 
     }
