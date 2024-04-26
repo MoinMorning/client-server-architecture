@@ -16,60 +16,84 @@ public class Server {
             Socket clientSocket = serverSocket.accept();
             ClientHandler clientHandler = new ClientHandler(clientSocket);
             new Thread(clientHandler).start();
-            Scanner scanner = new Scanner(System.in);
-            ClientHandler.broadcastMessage("You want to start? Please write \\start to start the game ");
-            String answer = scanner.nextLine();
-            if(answer.equals("\\start")){
-            ClientHandler.initializeDeck();
-            ClientHandler.startGame();
-            }
         }
     }
 
-    
-
-   static class ClientHandler implements Runnable {
+    static class ClientHandler implements Runnable {
         private Socket clientSocket;
-        private static String username;
+        private String username;
         private PrintWriter out;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
         }
-        
-        public static String getClientname(){
-            return username;
-        }
 
         @Override
-public void run() {
-    try {
-        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-        this.out = new PrintWriter(clientSocket.getOutputStream(), true);
+        public void run() {
+            try {
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                this.out = new PrintWriter(clientSocket.getOutputStream(), true);
 
-        while (true) {
-            this.username = in.readLine();
-            if (clientHandlers.containsKey(this.username)) {
-                out.println("Username is already taken. Please choose another one.");
-            } else {
-                System.out.println("Client " + this.username + " has connected!!!"); 
-                 // Print the client's username on the server's console
-                break;
+                // Handle username selection
+                while (true) {
+                    this.username = in.readLine();
+                    if (clientHandlers.containsKey(this.username)) {
+                        out.println("Username is already taken. Please choose another one.");
+                    } else {
+                        System.out.println("Client " + this.username + " has connected!");
+                        break;
+                    }
+                }
+
+                clientHandlers.put(this.username, this);
+                out.println("Welcome, " + this.username);
+                broadcastMessage(this.username + " joined the room");
+
+                String clientMessage;
+                while ((clientMessage = in.readLine()) != null) {
+                    if ("bye".equals(clientMessage)) {
+                        handleClientDisconnection();
+                        break;
+                    } else if (clientMessage.startsWith("/pm")) {
+                        handlePrivateMessage(clientMessage);
+                    } else if (clientMessage.startsWith("/start")) {
+                        startGame();
+                    } else if (clientMessage.startsWith("/play")) {
+                        playCard(clientMessage);
+                    } else {
+                        broadcastMessage(this.username + ": " + clientMessage);
+                    }
+                }
+            } catch (IOException ex) {
+                System.out.println("Client " + this.username + " disconnected");
+            } finally {
+                clientHandlers.remove(this.username);
+                broadcastMessage(this.username + " left the room");
+                try {
+                    clientSocket.close();
+                } catch (IOException ex) {
+                    System.out.println("Error when closing the socket for client: " + ex.getMessage());
+                }
             }
         }
 
-        clientHandlers.put(this.username, this);
-        out.println("Welcome " + this.username);
-        broadcastMessage(this.username + " joined the room");
-
-        String clientMessage;
-        while ((clientMessage = in.readLine()) != null) {
-            if ("bye".equals(clientMessage)) {
-
-                //TODO: Client has disconnected in Server (show in Server) 
-                
-                break;
+        private void handleClientDisconnection() {
+            // Remove the disconnected client from the game (if needed)
+            clientHandlers.remove(this.username);
+        
+            // Notify other players about the disconnection
+            broadcastMessage(this.username + " left the room");
+        
+            // Close the client socket
+            try {
+                clientSocket.close();
+            } catch (IOException ex) {
+                System.out.println("Error when closing the socket for client: " + ex.getMessage());
             }
+        }
+        
+
+        private void handlePrivateMessage(String clientMessage) {
             if (clientMessage.startsWith("/pm")) {
                 String[] parts = clientMessage.split(" ", 3);
                 if (parts.length < 3) {
@@ -84,49 +108,44 @@ public void run() {
                         out.println("User " + recipientUsername + " not found");
                     }
                 }
-            }  else if (clientMessage.startsWith("/start")) {
-            //TODO: Game implementieren.
-
-            // Start a new game
-        } else if (clientMessage.startsWith("/play")) {
-            // Play a card
-        } else {
-                broadcastMessage(this.username + ": " + clientMessage);
-            }       
-         }
-
-    } catch (IOException ex) {
-        System.out.println("Client " + this.username + " disconnected");
-    } finally {
-        clientHandlers.remove(this.username);
-        broadcastMessage(this.username + " left the room");
-        try {
-            clientSocket.close();
-        } catch (IOException ex) {
-            System.out.println("Error when closing the socket for client!!: " + ex.getMessage());
-        }
-    }
-}
-
-        public static void broadcastMessage(String message) {
-            for (ClientHandler clientHandler : clientHandlers.values()) {
-                clientHandler.sendMessage(message);
             }
         }
-
-        public  void sendMessage(String message) {
-            out.println(message);
+        public static List<String> createDeck() {
+            List<String> deck = new ArrayList<>();
+            String[] ranks = {"Guard", "Priest", "Baron", /* ... add other cards ... */};
+    
+            for (String rank : ranks) {
+                deck.add(rank);
+            }
+            return deck;
         }
     
-    private static void startGame() {
-        // Distribute cards to players (draw 1 card for each player)
+        public static void shuffleDeck(List<String> deck) {
+            Collections.shuffle(deck);
+        }
+        private String getCurrentPlayer() {
+            if (!playerTurnOrder.isEmpty()) {
+                return playerTurnOrder.peek(); // Peek at the front of the queue
+            } else {
+                // Handle the case when the turn order queue is empty (e.g., game over)
+                return null; // Or throw an exception, return a default player, etc.
+            }
+        }
+        
+        private void startGame() {
+            // Initialize game logic (deck, hands, turn order)
+            // ...
+            List<String> deck = createDeck();
+            shuffleDeck(deck);
+
+        // Draw 1 card for each player and assign it to their hand
         for (String player : clientHandlers.keySet()) {
-            String card = deck.remove(0); // Draw the top card
-            playerHands.put(player, card);
+        String card = deck.remove(0); // Draw the top card
+        playerHands.put(player, card);
         }
 
         // Inform players that the game has started
-     //   broadcastMessage("Game has started! Good luck!");
+        broadcastMessage("Game has started! Good luck!");
 
         // Determine the first player's turn (you can choose randomly or based on some criteria)
         playerTurnOrder.addAll(clientHandlers.keySet()); // Initialize turn order
@@ -134,76 +153,70 @@ public void run() {
 
         // Begin the first turn
         String firstPlayer = getCurrentPlayer();
-    //    broadcastMessage("First turn: " + firstPlayer);
-    }
-
-    private static void playCard(String cardName) {
-        String currentPlayer = getCurrentPlayer();
-
-        // Validate if it's the player's turn
-        if (!currentPlayer.equals(username)) {
-     //       out.println("It's not your turn!");
-            return;
+        broadcastMessage("First turn: " + firstPlayer);
         }
 
-        // Validate if the player has the specified card in their hand
-        String playerHand = playerHands.get(getClientname());
-        if (!playerHand.equals(cardName)) {
-       //     out.println("You don't have that card in your hand!");
-            return;
-        }
-
-        // Apply the card effect (example: Guard)
-        switch (cardName) {
-            case "Guard":
-                // Example: Guess another player's card; if correct, they're out.
-                // Implement the guessing logic here
-                // ...
-                break;
-            case "Priest":
-                // Example: Look at another player's hand.
-                // Implement the hand inspection logic here
-                // ...
-                break;
-            // Add other card effects (Baron, Handmaid, etc.) as needed
-            default:
-           //     out.println("Invalid card name.");
+        private void playCard(String clientMessage) {
+            // Parse the clientMessage to extract the card name (e.g., "/play Guard")
+            String[] parts = clientMessage.split(" ");
+            if (parts.length < 2) {
+                out.println("Invalid command. Use /play <card>");
                 return;
+            }
+            String cardName = parts[1];
+        
+            // Validate if it's the player's turn
+            String currentPlayer = getCurrentPlayer();
+            if (!this.username.equals(currentPlayer)) {
+                out.println("It's not your turn!");
+                return;
+            }
+        
+            // Validate if the player has the specified card in their hand
+            String playerHand = playerHands.get(this.username);
+            if (!playerHand.equals(cardName)) {
+                out.println("You don't have that card in your hand!");
+                return;
+            }
+        
+            // Apply the card effect based on the card name
+            switch (cardName) {
+                case "Guard":
+                    // Example: Guess another player's card; if correct, they're out.
+                    // Implement the guessing logic here
+                    // ...
+                    break;
+                case "Priest":
+                    // Example: Look at another player's hand.
+                    // Implement the hand inspection logic here
+                    // ...
+                    break;
+                // Add other card effects (Baron, Handmaid, etc.) as needed
+                default:
+                    out.println("Invalid card name.");
+                    return;
+            }
+        
+            // Update playerHands map (remove the played card from the player's hand)
+            playerHands.remove(this.username);
+        
+            // Inform all players about the played card and its effect
+            broadcastMessage(this.username + " played " + cardName);
+        
+            // Proceed to the next turn
+            playerTurnOrder.add(playerTurnOrder.poll());
+            String nextPlayer = getCurrentPlayer();
+            broadcastMessage("Next turn: " + nextPlayer);
         }
 
-        // Update playerHands map (remove the played card from the player's hand)
-
-        // Inform all players about the played card and its effect
-        System.out.println("Player " + username + " played " + cardName);
-
-        // Proceed to the next turn
-        // Update the playerTurnOrder queue (rotate the order)
-        playerTurnOrder.add(playerTurnOrder.poll());
-        String nextPlayer = getCurrentPlayer();
-        System.out.println("Next turn: " + nextPlayer);
-    }
-
-    private static void initializeDeck() {
-        // Add card names to the deck
-        // Example: deck.add("Guard");
-        deck.add("Guard");
-        deck.add("Priest");
-        deck.add("Baron");
-        deck.add("Prince");
-
-        // Shuffle the deck
-        Collections.shuffle(deck);
-    }
-
-    private static String getCurrentPlayer() {
-        // Ensure the playerTurnOrder queue is not empty
-        if (playerTurnOrder.isEmpty()) {
-            // Handle this case (e.g., start a new round or end the game)
-            // ...
+        public static void broadcastMessage(String message) {
+            for (ClientHandler clientHandler : clientHandlers.values()) {
+                clientHandler.sendMessage(message);
+            }
         }
 
-        // Get the current player from the front of the queue
-        return playerTurnOrder.peek();
+        public void sendMessage(String message) {
+            out.println(message);
+        }
     }
-}
 }
