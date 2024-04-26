@@ -11,13 +11,18 @@ public class Server {
     public static void main(String[] args) throws IOException {
         ServerSocket serverSocket = new ServerSocket(6789);
         System.out.println("Server is running and waiting for a client connection...");
-        ClientHandler.initializeDeck();
 
         while (true) {
             Socket clientSocket = serverSocket.accept();
             ClientHandler clientHandler = new ClientHandler(clientSocket);
             new Thread(clientHandler).start();
+            Scanner scanner = new Scanner(System.in);
+            ClientHandler.broadcastMessage("You want to start? Please write \\start to start the game ");
+            String answer = scanner.nextLine();
+            if(answer.equals("\\start")){
+            ClientHandler.initializeDeck();
             ClientHandler.startGame();
+            }
         }
     }
 
@@ -103,14 +108,14 @@ public void run() {
     }
 }
 
-        private void broadcastMessage(String message) {
+        public static void broadcastMessage(String message) {
             for (ClientHandler clientHandler : clientHandlers.values()) {
                 clientHandler.sendMessage(message);
             }
         }
 
-        private void sendMessage(String message) {
-            this.out.println(message);
+        public  void sendMessage(String message) {
+            out.println(message);
         }
     
     private static void startGame() {
