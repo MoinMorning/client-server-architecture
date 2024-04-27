@@ -60,8 +60,11 @@ public class Server {
                         startGame();
                     } else if (clientMessage.startsWith("/play")) {
                         playCard(clientMessage);
-                    } else {
+                    } else if(clientMessage.startsWith("/score")){
+                        //TODO: Score anzeige
+                    }else{
                         broadcastMessage(this.username + ": " + clientMessage);
+
                     }
                 }
             } catch (IOException ex) {
@@ -112,7 +115,7 @@ public class Server {
         }
         public static List<String> createDeck() {
             List<String> deck = new ArrayList<>();
-            String[] ranks = {"Guard", "Priest", "Baron", /* ... add other cards ... */};
+            String[] ranks = {"Guard", "Priest", "Baron", /* TODO:.. add other cards ... */};
     
             for (String rank : ranks) {
                 deck.add(rank);
@@ -127,6 +130,7 @@ public class Server {
             if (!playerTurnOrder.isEmpty()) {
                 return playerTurnOrder.peek(); // Peek at the front of the queue
             } else {
+                //TODO: handle exception
                 // Handle the case when the turn order queue is empty (e.g., game over)
                 return null; // Or throw an exception, return a default player, etc.
             }
@@ -183,15 +187,22 @@ public class Server {
             switch (cardName) {
                 case "Guard":
                     // Example: Guess another player's card; if correct, they're out.
-                    // Implement the guessing logic here
-                    // ...
-                    break;
+
+                    handleGuardGuess(cardName);
+                break;
                 case "Priest":
                     // Example: Look at another player's hand.
-                    // Implement the hand inspection logic here
-                    // ...
+                    handlePriestInspect(cardName);
                     break;
-                // Add other card effects (Baron, Handmaid, etc.) as needed
+                case "Baron":
+                    // Example: Look at another player's hand.
+                handleBaronEffect(cardName);
+                break;
+                case "King":
+                // Example: Look at another player's hand.
+            handleKingEffect(cardName);
+            break;
+                // TODO: Add other card effects (Baron, Handmaid, etc.) as needed
                 default:
                     out.println("Invalid card name.");
                     return;
@@ -208,7 +219,124 @@ public class Server {
             String nextPlayer = getCurrentPlayer();
             broadcastMessage("Next turn: " + nextPlayer);
         }
-
+        private void handleGuardGuess(String clientMessage) {
+            // Parse the clientMessage to extract the target player's username and guessed card
+            String[] parts = clientMessage.split(" ");
+            if (parts.length < 4) {
+                out.println("Invalid command. Use /play Guard <targetUsername> <guessedCard>");
+                return;
+            }
+            String targetUsername = parts[2];
+            String guessedCard = parts[3].toUpperCase(); // Convert to uppercase for consistency
+        
+            // Validate if the target player exists
+            ClientHandler targetPlayer = clientHandlers.get(targetUsername);
+            if (targetPlayer == null) {
+                out.println("User " + targetUsername + " not found");
+                return;
+            }
+        
+            // Get the target player's hand
+            String targetHand = playerHands.get(targetUsername);
+        
+            // Compare the guessed card with the actual card in the target player's hand
+            if (targetHand.equals(guessedCard)) {
+                // Guessed correctly; eliminate the target player
+                out.println("Correct guess! " + targetUsername + " is eliminated.");
+                // Remove the target player from the game (update turn order, etc.)
+                // TODO:
+            } else {
+                // Incorrect guess; inform the current player
+                out.println("Incorrect guess! " + targetUsername + " still in the game.");
+            }
+        }
+        private void handleKingEffect(String clientMessage){
+            //TODO: more card
+        }
+        
+        
+        private void handlePriestInspect(String clientMessage) {
+            // Parse the clientMessage to extract the target player's username
+            String[] parts = clientMessage.split(" ");
+            if (parts.length < 3) {
+                out.println("Invalid command. Use /play Priest <targetUsername>");
+                return;
+            }
+            String targetUsername = parts[2];
+        
+            // Validate if the target player exists
+            ClientHandler targetPlayer = clientHandlers.get(targetUsername);
+            if (targetPlayer == null) {
+                out.println("User " + targetUsername + " not found");
+                return;
+            }
+        
+            // Get the target player's hand (assuming you have a playerHands map)
+            String targetHand = playerHands.get(targetUsername);
+        
+            // Send the hand information to the current player
+            out.println(targetUsername + "'s hand: " + targetHand);
+        }
+        // TODO: Show hand
+        // TODO: Score anzeigen
+        
+        
+        private void handleBaronEffect(String clientMessage) {
+            // Parse the clientMessage to extract the target player's username
+            String[] parts = clientMessage.split(" ");
+            if (parts.length < 3) {
+                out.println("Invalid command. Use /play Baron <targetUsername>");
+                return;
+            }
+            String targetUsername = parts[2];
+        
+            // Validate if the target player exists
+            ClientHandler targetPlayer = clientHandlers.get(targetUsername);
+            if (targetPlayer == null) {
+                out.println("User " + targetUsername + " not found");
+                return;
+            }
+        
+            // Get the current player's hand and the target player's hand
+            String currentPlayerHand = playerHands.get(this.username);
+            String targetPlayerHand = playerHands.get(targetUsername);
+        
+            // Compare the ranks of the cards
+            int currentPlayerRank = getCardRank(currentPlayerHand);
+            int targetPlayerRank = getCardRank(targetPlayerHand);
+        
+            if (currentPlayerRank > targetPlayerRank) {
+                // Current player wins; eliminate the target player
+                out.println("You win! " + targetUsername + " is eliminated.");
+                // Remove the target player from the game (update turn order, etc.)
+                // ...
+            } else if (currentPlayerRank < targetPlayerRank) {
+                // Target player wins; current player is eliminated
+                out.println(targetUsername + " wins! You are eliminated.");
+                // Remove the current player from the game
+                // ...
+            } else {
+                // It's a tie; no one is eliminated
+                out.println("It's a tie! No one is eliminated.");
+            }
+        }
+        
+        private int getCardRank(String cardName) {
+            // Assign numeric ranks to different cards (customize as needed)
+            switch (cardName) {
+                case "Guard":
+                    return 1;
+                case "Priest":
+                    return 2;
+                case "Baron":
+                    return 3;
+                // Add other card ranks
+                default:
+                    return 0; // Unknown card (or use a different default value)
+            }
+        }
+        
+        
         public static void broadcastMessage(String message) {
             for (ClientHandler clientHandler : clientHandlers.values()) {
                 clientHandler.sendMessage(message);
