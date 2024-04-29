@@ -2,15 +2,19 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
+import javax.smartcardio.Card;
+
 public class Server {
     private static List<ClientHandler> players = new ArrayList<>(); // List to store player ClientHandlers
     private static Map<String, ClientHandler> clientHandlers = new HashMap<>();
     private static List<String> deck = new ArrayList<>();
     private static Map<String, String> playerHands = new HashMap<>();
     private static Queue<String> playerTurnOrder = new LinkedList<>();
+    private static List<String> turnOrderList = new ArrayList<>();
     private static Map<String, Integer> playerScores = new HashMap<>();
     private static Map<String, Boolean> playerProtectionStatus = new HashMap<>();
     public static boolean gameStarted;
+    public static boolean gameEnded;
     public static void main(String[] args) throws IOException {
         ServerSocket serverSocket = new ServerSocket(6789);
         System.out.println("Server is running and waiting for a client connection...");
@@ -22,12 +26,56 @@ public class Server {
             new Thread(clientHandler).start();
         }
     }
+    public static void initializeGame() {
+        broadcastMessage("Welcome to LoveLetter! Good Luck");
+        // Create and shuffle the deck
+        deck = createDeck();
+        shuffleDeck(deck);
+
+        // Deal cards to players
+        // Deal one card to each player
+    for (ClientHandler player : players) {
+        String card = deck.remove(0); // Draw the top card
+        for(int i = 0; i < 2 ; i++){
+        playerHands.put(player.getUsername(), card); // Assign the card to the player's hand
+        }
+    }
+        // Inform players that the game has started
+
+        // Initialize player protection status (assuming all players start unprotected)
+        for (String player : clientHandlers.keySet()) {
+            playerProtectionStatus.put(player, false);
+        }
+
+        // Initialize player scores
+        for (String player : clientHandlers.keySet()) {
+            playerScores.put(player, 0);
+        }
+
+    
+
+        // Determine the first player's turn (you can choose randomly or based on some criteria)
+        playerTurnOrder.addAll(clientHandlers.keySet()); // Initialize turn order
+        Collections.shuffle(new ArrayList<>(playerTurnOrder)); // Randomize the order
+
+        // Begin the first turn
+        String firstPlayer = getCurrentPlayer();
+        broadcastMessage("First turn: " + firstPlayer);
+        gameEnded = false;
+        while(!gameEnded){
+            turndertmination();
+        }
+    }       
+
+    public static void turndertmination(){
+
+    }
 
     static class ClientHandler implements Runnable {
         private Socket clientSocket;
         private String username;
         private PrintWriter out;
-        private int score;
+        private int score = 0;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
@@ -64,14 +112,12 @@ public class Server {
                         handlePrivateMessage(clientMessage);
                     } else if (clientMessage.startsWith("/start")) {
                         if(!gameStarted){
-                        startGame();
+                        initializeGame();
                         gameStarted = true;
                     } else { 
                         out.println("The game can't be started twice!!!!");
                     }
-                    } else if (clientMessage.startsWith("/play")) {
-                        playCard(clientMessage);
-                    } else if (clientMessage.startsWith("/show")) {
+                }else if (clientMessage.startsWith("/show")) {
                         showHands();
                     } else if (clientMessage.startsWith("/scores")) {
                         displayScores();
@@ -134,7 +180,7 @@ public class Server {
             return deck;
         }
         private void displayScores() {
-            StringBuilder scoreMessage = new StringBuilder("Current Scores:\n");
+            StringBuilder scoreMessage = new StringBuilder("Current Scores:\n" +score);
             for (Map.Entry<String, Integer> entry : playerScores.entrySet()) {
                 scoreMessage.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
             }
@@ -145,6 +191,7 @@ public class Server {
         public static void shuffleDeck(List<String> deck) {
             Collections.shuffle(deck);
         }
+        
 
         private static String getCurrentPlayer() {
             if (!playerTurnOrder.isEmpty()) {
@@ -153,51 +200,15 @@ public class Server {
                 throw new IllegalStateException("No current player. The turn order queue is empty.");
             }
         }
-        private void startGame() {
-           initializeGame();
-        }
-        public static void initializeGame() {
-            
-            // Create and shuffle the deck
-            deck = createDeck();
-            shuffleDeck(deck);
-    
-            // Deal cards to players
-            // Deal one card to each player
-        for (ClientHandler player : players) {
-            String card = deck.remove(0); // Draw the top card
-            playerHands.put(player.getUsername(), card); // Assign the card to the player's hand
-        }
-            // Inform players that the game has started
-            broadcastMessage("Welcome to LoveLetter! Good Luck");
-    
-            // Initialize player protection status (assuming all players start unprotected)
-            for (String player : clientHandlers.keySet()) {
-                playerProtectionStatus.put(player, false);
-            }
-    
-            // Initialize player scores
-            for (String player : clientHandlers.keySet()) {
-                playerScores.put(player, 0);
-            }
-    
-            // Determine the first player's turn (you can choose randomly or based on some criteria)
-            playerTurnOrder.addAll(clientHandlers.keySet()); // Initialize turn order
-            Collections.shuffle(new ArrayList<>(playerTurnOrder)); // Randomize the order
-    
-            // Begin the first turn
-            String firstPlayer = getCurrentPlayer();
-            broadcastMessage("First turn: " + firstPlayer);
-        }        
+       
+         
        
 
         private void playCard(String clientMessage) {
-            while (true) {                
             // Parse the clientMessage to extract the card name (e.g., "/play Guard")
             String[] parts = clientMessage.split(" ");
             if (parts.length < 2) {
                 out.println("Invalid command. Use /play <card>");
-                break;
             }
             String cardName = parts[1];
         
@@ -295,10 +306,9 @@ public class Server {
                     }
                 }
                 broadcastMessage("Round winner: " + winner);
-                break;
             }
         }
-    }
+
         private void discardHand(String playerName) {
         // Remove all cards from the player's hand
         playerHands.remove(playerName);
