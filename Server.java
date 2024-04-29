@@ -26,50 +26,7 @@ public class Server {
             new Thread(clientHandler).start();
         }
     }
-    public static void initializeGame() {
-        broadcastMessage("Welcome to LoveLetter! Good Luck");
-        // Create and shuffle the deck
-        deck = createDeck();
-        shuffleDeck(deck);
-
-        // Deal cards to players
-        // Deal one card to each player
-    for (ClientHandler player : players) {
-        String card = deck.remove(0); // Draw the top card
-        for(int i = 0; i < 2 ; i++){
-        playerHands.put(player.getUsername(), card); // Assign the card to the player's hand
-        }
-    }
-        // Inform players that the game has started
-
-        // Initialize player protection status (assuming all players start unprotected)
-        for (String player : clientHandlers.keySet()) {
-            playerProtectionStatus.put(player, false);
-        }
-
-        // Initialize player scores
-        for (String player : clientHandlers.keySet()) {
-            playerScores.put(player, 0);
-        }
-
     
-
-        // Determine the first player's turn (you can choose randomly or based on some criteria)
-        playerTurnOrder.addAll(clientHandlers.keySet()); // Initialize turn order
-        Collections.shuffle(new ArrayList<>(playerTurnOrder)); // Randomize the order
-
-        // Begin the first turn
-        String firstPlayer = getCurrentPlayer();
-        broadcastMessage("First turn: " + firstPlayer);
-        gameEnded = false;
-        while(!gameEnded){
-            turndertmination();
-        }
-    }       
-
-    public static void turndertmination(){
-
-    }
 
     static class ClientHandler implements Runnable {
         private Socket clientSocket;
@@ -137,6 +94,53 @@ public class Server {
                 }
             }
         }
+
+        public void initializeGame(String m) {
+            broadcastMessage("Welcome to LoveLetter! Good Luck");
+            // Create and shuffle the deck
+            deck = createDeck();
+            shuffleDeck(deck);
+    
+            // Deal cards to players
+            // Deal one card to each player
+        for (ClientHandler player : players) {
+            String card = deck.remove(0); // Draw the top card
+            for(int i = 0; i < 2 ; i++){
+            playerHands.put(player.getUsername(), card); // Assign the card to the player's hand
+            }
+        }
+            // Inform players that the game has started
+    
+            // Initialize player protection status (assuming all players start unprotected)
+            for (String player : clientHandlers.keySet()) {
+                playerProtectionStatus.put(player, false);
+            }
+    
+            // Initialize player scores
+            for (String player : clientHandlers.keySet()) {
+                playerScores.put(player, 0);
+            }
+    
+        
+    
+            // Determine the first player's turn (you can choose randomly or based on some criteria)
+            playerTurnOrder.addAll(clientHandlers.keySet()); // Initialize turn order
+            Collections.shuffle(new ArrayList<>(playerTurnOrder)); // Randomize the order
+    
+            // Begin the first turn
+            String firstPlayer = ClientHandler.getCurrentPlayer();
+            ClientHandler.broadcastMessage("First turn: " + firstPlayer);
+            gameEnded = false;
+            while(!gameEnded){
+                turndertmination(m);
+            }
+        }       
+    
+        public void turndertmination(String m){
+            playCard(m);
+            
+        }
+
 
         private void handleClientDisconnection() {
             // Remove the disconnected client from the game (if needed)
