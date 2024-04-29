@@ -200,7 +200,7 @@ public class Server {
                 break;
                 case "King":
                 // Example: Look at another player's hand.
-            handleKingEffect(cardName);
+                 handleKingEffect(cardName);
             break;
                 // TODO: Add other card effects (Baron, Handmaid, etc.) as needed
                 default:
@@ -250,9 +250,28 @@ public class Server {
                 out.println("Incorrect guess! " + targetUsername + " still in the game.");
             }
         }
-        private void handleKingEffect(String clientMessage){
-            //TODO: more card
+        private void handleKingEffect(String targetPlayer) {
+            // Validate if the target player exists
+            if (!playerHands.containsKey(targetPlayer)) {
+                out.println("Invalid target player.");
+                return;
+            }
+        
+            // Swap the cards in the hands of the current player and the target player
+            String currentPlayerHand = playerHands.get(this.username);
+            String targetPlayerHand = playerHands.get(targetPlayer);
+            playerHands.put(this.username, targetPlayerHand);
+            playerHands.put(targetPlayer, currentPlayerHand);
+        
+            // Inform all players about the trade
+            broadcastMessage(this.username + " traded hands with " + targetPlayer);
+        
+            // Proceed to the next turn
+            playerTurnOrder.add(playerTurnOrder.poll());
+            String nextPlayer = getCurrentPlayer();
+            broadcastMessage("Next turn: " + nextPlayer);
         }
+        
         
         
         private void handlePriestInspect(String clientMessage) {
