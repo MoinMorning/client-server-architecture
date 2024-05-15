@@ -9,7 +9,7 @@ public class Client {
             System.out.println("Connected to the server!");
 
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-            System.out.print("Enter your username: ");
+            System.out.print("Enter your name: ");
             String username = in.readLine();
 
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
